@@ -1,0 +1,97 @@
+---
+title: "Reproducible Pitch"
+author: "Andriy Levytskyy"
+date: "November 04, 2020"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+suppressPackageStartupMessages(library(dplyr))
+
+filename <- "RepData.zip"
+
+# Checking if zip-file already exists.
+if (!file.exists(filename)){
+      fileURL <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+      download.file(fileURL, filename, method="curl")
+}  
+
+# Checking if un-zipped file exists
+if (!file.exists("activity.csv")) { 
+      unzip(filename) 
+}
+
+#Read data from activity.csv
+activity<-read.csv("activity.csv")
+
+activity$date<-as.Date(activity$date, "%Y-%m-%d")
+
+head(activity)
+```
+
+## Histogram of the total number of steps taken each day
+
+```{r echo=FALSE}
+activity_by_date<-group_by(activity, date)
+
+suppressMessages(activity_sum_by_date<-summarise(activity_by_date, stepsSum=sum(steps)))
+
+hist(x=activity_sum_by_date$stepsSum)
+
+```
+
+## Mean and median number of steps taken each day
+
+```{r }
+steps_by_interval <- aggregate(steps ~ interval, activity, mean)
+summary(activity_sum_by_date$stepsSum)
+
+```
+
+## Time series of average number of steps
+
+```{r}
+plot(steps_by_interval$interval, steps_by_interval$steps, type='l', 
+     main="Average number of steps over all days", xlab="Interval", 
+     ylab="Average number of steps")
+```
+```{r echo=FALSE}
+# find row with max of steps
+max_steps_row <- which.max(steps_by_interval$steps)
+
+# find interval with this max
+steps_by_interval[max_steps_row, ]
+
+suppressMessages(activity_sum_na_by_date<-summarise(activity_by_date, stepsSum=sum(steps, na.rm = TRUE)))
+
+#hist(x=activity_sum_na_by_date$stepsSum)
+
+```
+
+## Panel plot comparing the average number of steps
+### taken per 5-minute interval across weekdays and weekends
+
+```{r echo=FALSE}
+activity_by_date$weekday <- weekdays(as.Date(activity_by_date$date))
+
+activity_by_date$typeday <- "weekday"
+
+activity_by_date$typeday[activity_by_date$weekday %in% c('Saturday','Sunday')] <- "weekend"
+
+activity_by_date_week <- aggregate(steps ~ interval + typeday, data=activity_by_date, mean)
+
+activity_by_date_weekday <- subset(activity_by_date_week, 
+                                   activity_by_date_week$typeday=="weekday")
+activity_by_date_weekend <- subset(activity_by_date_week, 
+                                   activity_by_date_week$typeday=="weekend")
+
+with(activity_by_date_weekday, plot(steps ~ interval, type = "l"))
+
+with(activity_by_date_weekend, lines(steps ~ interval, type = "l", col = "red"))
+
+legend("topright", col=c("black", "red"), lty = 1, lwd = 2, 
+       legend = c("Weekday", "Weekend"))
+
+```
